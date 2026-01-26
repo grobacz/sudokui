@@ -131,10 +131,11 @@ pub fn apply_command(state: &mut GameState, command: Command) {
             if action == LastAction::Clear {
                 state.clear_selected();
             }
-            if action == LastAction::Hint {
-                if state.hints_left > 0 && crate::puzzle::apply_hint(state) {
-                    state.hints_left -= 1;
-                }
+            if action == LastAction::Hint
+                && state.hints_left > 0
+                && crate::puzzle::apply_hint(state)
+            {
+                state.hints_left -= 1;
             }
             if action == LastAction::Save {
                 let _ = state.save_default();

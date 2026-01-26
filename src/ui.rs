@@ -8,7 +8,8 @@ use ratatui::{
     Frame,
 };
 
-use crate::state::{Difficulty, DifficultyOption, GameState, InputMode, Screen, UiZoom};
+#[allow(unused_imports)]
+use crate::state::{Difficulty, DifficultyOption, GameState, InputMode, UiZoom};
 
 pub fn render(frame: &mut Frame, state: &GameState) {
     let header_line = header_line(state);
@@ -521,7 +522,7 @@ fn side_panel_width(state: &GameState) -> usize {
 }
 
 pub fn render_selector(frame: &mut Frame, state: &GameState) {
-    use crate::state::{DifficultyOption, Screen};
+    use crate::state::DifficultyOption;
 
     let options_list: Vec<DifficultyOption> = vec![
         DifficultyOption::Easy,
@@ -552,10 +553,10 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
 
     let box_w = 25;
     let box_h = 2 + option_count;
-    let box_x = (80u16.saturating_sub(box_w) / 2) as u16;
+    let box_x = 80u16.saturating_sub(box_w) / 2;
     let box_area = Rect {
         x: box_x,
-        y: (frame.area().height.saturating_sub(box_h) / 2) as u16,
+        y: frame.area().height.saturating_sub(box_h) / 2,
         width: box_w,
         height: box_h,
     };
@@ -594,7 +595,7 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
         );
     }
 
-    let footer_lines = vec![
+    let footer_lines = [
         Line::from("Arrows to move, Enter to select, q to quit"),
         Line::from(""),
     ];
@@ -613,13 +614,14 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
 }
 
 pub fn render_win(frame: &mut Frame, state: &GameState) {
+    #[allow(unused_imports)]
     use crate::state::Difficulty;
 
     let elapsed = state.started_at.elapsed();
     let timer = format_hhmmss(elapsed);
     let difficulty = state.difficulty.to_string();
 
-    let stats_lines = vec![
+    let stats_lines = [
         Line::from("Congratulations! Puzzle Solved!"),
         Line::from(""),
         Line::from(format!("Time:      {}", timer)),
@@ -670,7 +672,7 @@ pub fn render_win(frame: &mut Frame, state: &GameState) {
     let header_w = stats_lines
         .iter()
         .chain(leaderboard_lines.iter())
-        .map(|l| l.width() as usize)
+        .map(|l| l.width())
         .max()
         .unwrap_or(0)
         .max(60)
@@ -697,7 +699,6 @@ pub fn render_win(frame: &mut Frame, state: &GameState) {
     };
 
     let max_inner_w = inner_area.width;
-    let max_inner_h = inner_area.height;
 
     for (i, line) in stats_lines
         .iter()

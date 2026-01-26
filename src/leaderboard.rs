@@ -3,7 +3,9 @@ use std::{env, fs, io, path::PathBuf};
 
 use crate::state::Difficulty;
 
+#[allow(dead_code)]
 pub const LEADERBOARD_SIZE: usize = 20;
+#[allow(dead_code)]
 pub const TOP_DISPLAY_COUNT: usize = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,17 +37,18 @@ impl Leaderboard {
         serde_json::from_str(&json).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
+    #[allow(dead_code)]
     pub fn save(&self) -> io::Result<()> {
         let path = leaderboard_path()?;
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string_pretty(self).map_err(io::Error::other)?;
         fs::write(&path, json)
     }
 
+    #[allow(dead_code)]
     pub fn add_entry(&mut self, entry: LeaderboardEntry) {
         self.entries.push(entry);
 

@@ -45,12 +45,14 @@ fn fill_cell(board: &mut [[Cell; 9]; 9], row: usize, col: usize) -> bool {
 }
 
 fn is_safe(board: &[[Cell; 9]; 9], row: usize, col: usize, num: u8) -> bool {
+    #[allow(clippy::needless_range_loop)]
     for i in 0..9 {
         if board[row][i].value == Some(num) {
             return false;
         }
     }
 
+    #[allow(clippy::needless_range_loop)]
     for i in 0..9 {
         if board[i][col].value == Some(num) {
             return false;
@@ -70,6 +72,7 @@ fn is_safe(board: &[[Cell; 9]; 9], row: usize, col: usize, num: u8) -> bool {
     true
 }
 
+#[allow(clippy::ptr_arg)]
 fn shuffle<T>(vec: &mut Vec<T>) {
     use rand::seq::SliceRandom;
     vec.shuffle(&mut rand::thread_rng());
