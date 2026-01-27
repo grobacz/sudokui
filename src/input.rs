@@ -113,7 +113,23 @@ pub fn apply_command(state: &mut GameState, command: Command) {
                 }
             }
         }
-        Command::Digit(digit) => state.enter_digit(digit),
+        Command::Digit(digit) => {
+            state.enter_digit(digit);
+            use crate::state::Screen;
+            if state.screen == Screen::Playing && state.check_win() {
+                state.game_completed = true;
+                if let Ok(mut leaderboard) = crate::leaderboard::Leaderboard::load() {
+                    let entry = crate::leaderboard::LeaderboardEntry {
+                        difficulty: state.difficulty,
+                        time_seconds: state.started_at.elapsed().as_secs(),
+                        completed_at: chrono::Local::now().format("%Y-%m-%d").to_string(),
+                    };
+                    leaderboard.add_entry(entry);
+                    let _ = leaderboard.save();
+                }
+                state.screen = Screen::Win;
+            }
+        }
         Command::ToggleNotes => {
             state.input_mode = match state.input_mode {
                 InputMode::Normal => InputMode::Notes,

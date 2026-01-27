@@ -70,9 +70,14 @@ pub fn render(frame: &mut Frame, state: &GameState) {
 fn header_line(state: &GameState) -> String {
     let elapsed = state.started_at.elapsed();
     let timer = format_hhmmss(elapsed);
+    let warning = if state.max_mistakes_warning {
+        " [MAX MISTAKES!]"
+    } else {
+        ""
+    };
     format!(
-        "SUDOKUI  {}  {}  Mistakes: {}/{}",
-        state.difficulty, timer, state.mistakes, state.mistakes_max
+        "SUDOKUI  {}  {}  Mistakes: {}/{}{}",
+        state.difficulty, timer, state.mistakes, state.mistakes_max, warning
     )
 }
 
@@ -524,12 +529,16 @@ fn side_panel_width(state: &GameState) -> usize {
 pub fn render_selector(frame: &mut Frame, state: &GameState) {
     use crate::state::DifficultyOption;
 
-    let options_list: Vec<DifficultyOption> = vec![
+    let mut options_list: Vec<DifficultyOption> = vec![
         DifficultyOption::Easy,
         DifficultyOption::Medium,
         DifficultyOption::Hard,
         DifficultyOption::Expert,
     ];
+
+    if state.has_recent_save {
+        options_list.insert(0, DifficultyOption::Resume);
+    }
 
     let options_map = |opt: &DifficultyOption| -> &'static str {
         match opt {
@@ -549,10 +558,10 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
         style
     };
 
-    let option_count = if state.has_recent_save { 5 } else { 4 };
+    let option_count = options_list.len();
 
-    let box_w = 25;
-    let box_h = 2 + option_count;
+    let box_w = 25u16;
+    let box_h = 2u16 + option_count as u16;
     let box_x = 80u16.saturating_sub(box_w) / 2;
     let box_area = Rect {
         x: box_x,
@@ -605,7 +614,7 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
             Paragraph::new(line.clone()),
             Rect {
                 x: box_x,
-                y: box_area.y + 2 + option_count + 1 + i as u16,
+                y: box_area.y + 2 + option_count as u16 + 1 + i as u16,
                 width: box_w,
                 height: 1,
             },

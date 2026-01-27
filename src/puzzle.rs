@@ -224,3 +224,181 @@ pub fn apply_hint(state: &mut crate::state::GameState) -> bool {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn count_givens(grid: &[[crate::state::Cell; 9]; 9]) -> usize {
+        grid.iter()
+            .flat_map(|row| row.iter())
+            .filter(|cell| cell.given)
+            .count()
+    }
+
+    fn is_valid_sudoku(grid: &[[crate::state::Cell; 9]; 9]) -> bool {
+        // Check rows
+        for row in 0..9 {
+            let mut seen = [false; 9];
+            for col in 0..9 {
+                if let Some(val) = grid[row][col].value {
+                    let idx = (val - 1) as usize;
+                    if seen[idx] {
+                        return false;
+                    }
+                    seen[idx] = true;
+                }
+            }
+        }
+
+        // Check columns
+        for col in 0..9 {
+            let mut seen = [false; 9];
+            for row in 0..9 {
+                if let Some(val) = grid[row][col].value {
+                    let idx = (val - 1) as usize;
+                    if seen[idx] {
+                        return false;
+                    }
+                    seen[idx] = true;
+                }
+            }
+        }
+
+        // Check 3x3 boxes
+        for box_row in 0..3 {
+            for box_col in 0..3 {
+                let mut seen = [false; 9];
+                for row in (box_row * 3)..(box_row * 3 + 3) {
+                    for col in (box_col * 3)..(box_col * 3 + 3) {
+                        if let Some(val) = grid[row][col].value {
+                            let idx = (val - 1) as usize;
+                            if seen[idx] {
+                                return false;
+                            }
+                            seen[idx] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        true
+    }
+
+    #[test]
+    fn test_easy_difficulty_givens() {
+        let grid = generate_puzzle(crate::state::Difficulty::Easy);
+        let givens = count_givens(&grid);
+        assert!(
+            givens >= 36 && givens <= 38,
+            "Easy: expected 36-38 givens, got {}",
+            givens
+        );
+    }
+
+    #[test]
+    fn test_medium_difficulty_givens() {
+        let grid = generate_puzzle(crate::state::Difficulty::Medium);
+        let givens = count_givens(&grid);
+        assert!(
+            givens >= 30 && givens <= 32,
+            "Medium: expected 30-32 givens, got {}",
+            givens
+        );
+    }
+
+    #[test]
+    fn test_hard_difficulty_givens() {
+        let grid = generate_puzzle(crate::state::Difficulty::Hard);
+        let givens = count_givens(&grid);
+        assert!(
+            givens >= 24 && givens <= 27,
+            "Hard: expected 24-27 givens, got {}",
+            givens
+        );
+    }
+
+    #[test]
+    fn test_expert_difficulty_givens() {
+        // Expert aims for 17-22 givens, but may have more due to uniqueness constraint
+        // The algorithm removes up to 60 cells, but only if solution remains unique
+        let grid = generate_puzzle(crate::state::Difficulty::Expert);
+        let givens = count_givens(&grid);
+        assert!(
+            givens >= 17 && givens <= 27,
+            "Expert: expected 17-27 givens (uniqueness constraint), got {}",
+            givens
+        );
+    }
+
+    #[test]
+    fn test_generated_puzzle_is_valid() {
+        for difficulty in &[
+            crate::state::Difficulty::Easy,
+            crate::state::Difficulty::Medium,
+            crate::state::Difficulty::Hard,
+            crate::state::Difficulty::Expert,
+        ] {
+            let grid = generate_puzzle(*difficulty);
+            assert!(
+                is_valid_sudoku(&grid),
+                "Generated puzzle for {:?} is invalid",
+                difficulty
+            );
+        }
+    }
+
+    #[test]
+    fn test_solution_is_valid() {
+        let grid = generate_puzzle(crate::state::Difficulty::Easy);
+        let solution = get_solution(&grid);
+        assert!(solution.is_some(), "Easy puzzle should have a solution");
+        if let Some(sol) = solution {
+            // Solution should be complete (all cells filled with 1-9)
+            for row in 0..9 {
+                for col in 0..9 {
+                    let val = sol[row][col];
+                    assert!(
+                        val >= 1 && val <= 9,
+                        "Solution should have valid values, got {} at [{},{}]",
+                        val,
+                        row,
+                        col
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unique_solution() {
+        // Test that puzzles have unique solutions (or very close)
+        let grid = generate_puzzle(crate::state::Difficulty::Easy);
+        let solution_count = count_solutions(&grid);
+        assert_eq!(
+            solution_count, 1,
+            "Easy puzzle should have exactly 1 solution"
+        );
+    }
+
+    #[test]
+    fn test_multiple_puzzles_are_different() {
+        let grid1 = generate_puzzle(crate::state::Difficulty::Easy);
+        let grid2 = generate_puzzle(crate::state::Difficulty::Easy);
+
+        let mut different = false;
+        for row in 0..9 {
+            for col in 0..9 {
+                if grid1[row][col].given != grid2[row][col].given {
+                    different = true;
+                    break;
+                }
+            }
+            if different {
+                break;
+            }
+        }
+        assert!(different, "Multiple Easy puzzles should be different");
+    }
+}

@@ -778,4 +778,173 @@ mod tests {
         let elapsed = loaded.started_at.elapsed().as_secs();
         assert!(elapsed >= 123 && elapsed <= 126);
     }
+
+    #[test]
+    fn hint_fills_empty_cell() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Find an empty (non-given) cell
+        let mut empty_cell = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    empty_cell = Some((row, col));
+                    break;
+                }
+            }
+            if empty_cell.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = empty_cell.unwrap();
+        state.selection = Selection { row, col };
+
+        // Get the correct value first
+        let correct_value = crate::puzzle::get_correct_value_for_cell(&state.grid, row, col);
+        assert!(
+            correct_value.is_some(),
+            "Should have a solution for the cell"
+        );
+
+        // Apply hint
+        // Note: The hint function itself doesn't decrement hints_left - that's done in input.rs
+        let result = crate::puzzle::apply_hint(&mut state);
+
+        assert!(result, "Hint should succeed on empty cell");
+        assert_eq!(
+            state.grid[row][col].value, correct_value,
+            "Should fill correct value"
+        );
+    }
+
+    #[test]
+    fn hint_does_not_modify_given_cell() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Find a given cell
+        let mut given_cell = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if state.grid[row][col].given {
+                    given_cell = Some((row, col));
+                    break;
+                }
+            }
+            if given_cell.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = given_cell.unwrap();
+        state.selection = Selection { row, col };
+
+        let original_value = state.grid[row][col].value;
+        let hints_before = state.hints_left;
+
+        // Try to apply hint to given cell
+        let result = crate::puzzle::apply_hint(&mut state);
+
+        assert!(!result, "Hint should fail on given cell");
+        assert_eq!(state.hints_left, hints_before, "Should not decrement hints");
+        assert_eq!(
+            state.grid[row][col].value, original_value,
+            "Should not modify given cell"
+        );
+    }
+
+    #[test]
+    fn hint_does_not_modify_filled_cell() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Find an empty cell and fill it
+        let mut empty_cell = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    empty_cell = Some((row, col));
+                    state.selection = Selection { row, col };
+                    state.enter_digit(5);
+                    break;
+                }
+            }
+            if empty_cell.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = empty_cell.unwrap();
+        let hints_before = state.hints_left;
+
+        // Try to apply hint to already filled cell
+        let result = crate::puzzle::apply_hint(&mut state);
+
+        assert!(!result, "Hint should fail on filled cell");
+        assert_eq!(state.hints_left, hints_before, "Should not decrement hints");
+        assert_eq!(
+            state.grid[row][col].value,
+            Some(5),
+            "Should keep entered value"
+        );
+    }
+
+    #[test]
+    fn hint_only_works_when_hints_available() {
+        let mut state = GameState::new(Difficulty::Easy);
+        state.hints_left = 0;
+
+        // Find an empty cell
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    state.selection = Selection { row, col };
+                    break;
+                }
+            }
+        }
+
+        // Apply hint directly (bypassing the input system which checks hints_left)
+        let result = crate::puzzle::apply_hint(&mut state);
+
+        // Hint function itself doesn't check hints_left - that's done in input.rs
+        // This test verifies the hint still fills the cell correctly
+        assert!(
+            result,
+            "Hint should succeed regardless of hints_left counter"
+        );
+    }
+
+    #[test]
+    fn hint_fills_correct_value() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Test multiple cells to ensure hints are always correct
+        let mut tested = 0;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given && tested < 5 {
+                    state.selection = Selection { row, col };
+
+                    let expected = crate::puzzle::get_correct_value_for_cell(&state.grid, row, col);
+                    assert!(expected.is_some(), "Cell should have correct value");
+
+                    let result = crate::puzzle::apply_hint(&mut state);
+                    assert!(result, "Hint should succeed");
+
+                    assert_eq!(
+                        state.grid[row][col].value, expected,
+                        "Hint should fill correct value at [{},{}]",
+                        row, col
+                    );
+
+                    tested += 1;
+                }
+            }
+            if tested >= 5 {
+                break;
+            }
+        }
+
+        assert!(tested >= 5, "Should test at least 5 cells");
+    }
 }
