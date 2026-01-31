@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::{io, time::{Duration, Instant}};
 
 use crossterm::{
     event::{self, Event},
@@ -8,6 +8,8 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crate::{input, state::GameState, ui};
+
+const AUTOSAVE_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn run() -> io::Result<()> {
     enable_raw_mode()?;
@@ -28,6 +30,7 @@ pub fn run() -> io::Result<()> {
 
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     let mut state = GameState::load_or_show_selector()?;
+    let mut last_autosave = Instant::now();
 
     loop {
         terminal.draw(|frame| match state.screen {
@@ -42,6 +45,13 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result
                     input::apply_command(&mut state, command);
                 }
             }
+        }
+
+        if last_autosave.elapsed() >= AUTOSAVE_INTERVAL {
+            if matches!(state.screen, crate::state::Screen::Playing) && !state.game_completed {
+                let _ = state.save_default();
+            }
+            last_autosave = Instant::now();
         }
 
         if state.should_quit {

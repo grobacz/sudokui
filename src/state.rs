@@ -26,7 +26,7 @@ impl std::fmt::Display for Difficulty {
             Difficulty::Easy => write!(f, "Easy"),
             Difficulty::Medium => write!(f, "Medium"),
             Difficulty::Hard => write!(f, "Hard"),
-            Difficulty::Expert => write!(f, "Expert"),
+            Difficulty::Expert => write!(f, "Very Hard"),
         }
     }
 }
@@ -360,15 +360,17 @@ impl GameState {
             (cell.value, cell.candidates_mask)
         };
 
-        if old_value.is_some() || old_mask != 0 {
+        if old_mask != 0 {
+            self.history
+                .push(crate::history::GameAction::ClearCandidates { row, col, old_mask });
+        }
+        if old_value.is_some() {
             self.history.push(crate::history::GameAction::SetCell {
                 row,
                 col,
                 old_value,
                 new_value: None,
             });
-            self.history
-                .push(crate::history::GameAction::ClearCandidates { row, col, old_mask });
         }
 
         let cell = self.selected_cell_mut();
@@ -377,14 +379,72 @@ impl GameState {
         cell.wrong = false;
     }
 
-    #[allow(dead_code)]
     pub fn undo(&mut self) {
-        self.history.undo();
+        if let Some(action) = self.history.undo() {
+            match action {
+                crate::history::GameAction::SetCell {
+                    row,
+                    col,
+                    old_value,
+                    new_value: _,
+                } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.value = old_value;
+                        cell.wrong = false;
+                    }
+                }
+                crate::history::GameAction::ToggleCandidate { row, col, digit } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.toggle_candidate(digit);
+                    }
+                }
+                crate::history::GameAction::ClearCandidates { row, col, old_mask } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.candidates_mask = old_mask;
+                    }
+                }
+                crate::history::GameAction::NewGame => {}
+            }
+        }
     }
 
-    #[allow(dead_code)]
     pub fn redo(&mut self) {
-        self.history.redo();
+        if let Some(action) = self.history.redo() {
+            match action {
+                crate::history::GameAction::SetCell {
+                    row,
+                    col,
+                    old_value: _,
+                    new_value,
+                } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.value = new_value;
+                        if new_value.is_some() {
+                            cell.clear_candidates();
+                        }
+                        cell.wrong = false;
+                    }
+                }
+                crate::history::GameAction::ToggleCandidate { row, col, digit } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.value = None;
+                        cell.toggle_candidate(digit);
+                    }
+                }
+                crate::history::GameAction::ClearCandidates { row, col, old_mask: _ } => {
+                    let cell = &mut self.grid[row][col];
+                    if !cell.given {
+                        cell.clear_candidates();
+                    }
+                }
+                crate::history::GameAction::NewGame => {}
+            }
+        }
     }
 
     pub fn validate_and_count_mistakes(&mut self) {
@@ -946,5 +1006,115 @@ mod tests {
         }
 
         assert!(tested >= 5, "Should test at least 5 cells");
+    }
+
+    #[test]
+    fn undo_and_redo_cell_value() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Find a non-given cell
+        let mut cell_pos = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    state.selection = Selection { row, col };
+                    cell_pos = Some((row, col));
+                    break;
+                }
+            }
+            if cell_pos.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = cell_pos.unwrap();
+
+        // Enter a value
+        state.enter_digit(5);
+        assert_eq!(state.grid[row][col].value, Some(5));
+
+        // Undo should clear the value
+        state.undo();
+        assert_eq!(state.grid[row][col].value, None);
+
+        // Redo should restore the value
+        state.redo();
+        assert_eq!(state.grid[row][col].value, Some(5));
+    }
+
+    #[test]
+    fn undo_and_redo_candidate() {
+        let mut state = GameState::new(Difficulty::Easy);
+        state.input_mode = InputMode::Notes;
+
+        // Find a non-given cell
+        let mut cell_pos = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    state.selection = Selection { row, col };
+                    cell_pos = Some((row, col));
+                    break;
+                }
+            }
+            if cell_pos.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = cell_pos.unwrap();
+
+        // Toggle a candidate
+        state.enter_digit(3);
+        let candidates = state.grid[row][col].candidates();
+        assert!(candidates.contains(&3));
+
+        // Undo should remove the candidate
+        state.undo();
+        let candidates = state.grid[row][col].candidates();
+        assert!(!candidates.contains(&3));
+
+        // Redo should restore the candidate
+        state.redo();
+        let candidates = state.grid[row][col].candidates();
+        assert!(candidates.contains(&3));
+    }
+
+    #[test]
+    fn undo_and_redo_clear_cell() {
+        let mut state = GameState::new(Difficulty::Easy);
+
+        // Find a non-given cell
+        let mut cell_pos = None;
+        for row in 0..9 {
+            for col in 0..9 {
+                if !state.grid[row][col].given {
+                    state.selection = Selection { row, col };
+                    cell_pos = Some((row, col));
+                    break;
+                }
+            }
+            if cell_pos.is_some() {
+                break;
+            }
+        }
+
+        let (row, col) = cell_pos.unwrap();
+
+        // Enter a value
+        state.enter_digit(8);
+        assert_eq!(state.grid[row][col].value, Some(8));
+
+        // Clear the cell
+        state.clear_selected();
+        assert_eq!(state.grid[row][col].value, None);
+
+        // Undo should restore the value
+        state.undo();
+        assert_eq!(state.grid[row][col].value, Some(8));
+
+        // Redo should clear the cell again
+        state.redo();
+        assert_eq!(state.grid[row][col].value, None);
     }
 }

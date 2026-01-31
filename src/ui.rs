@@ -32,7 +32,7 @@ pub fn render(frame: &mut Frame, state: &GameState) {
     let outer_w = inner_w.saturating_add(2);
     let outer_h = inner_h.saturating_add(2);
 
-    let outer_area = top_left_rect_exact(outer_w, outer_h, frame.area());
+    let outer_area = top_left_rect_exact(outer_w, outer_h, frame.size());
     frame.render_widget(Block::default().borders(Borders::ALL), outer_area);
 
     let inner = Rect {
@@ -527,7 +527,6 @@ fn side_panel_width(state: &GameState) -> usize {
 }
 
 pub fn render_selector(frame: &mut Frame, state: &GameState) {
-    use crate::state::DifficultyOption;
 
     let mut options_list: Vec<DifficultyOption> = vec![
         DifficultyOption::Easy,
@@ -542,10 +541,10 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
 
     let options_map = |opt: &DifficultyOption| -> &'static str {
         match opt {
-            DifficultyOption::Easy => "36-38 givens",
-            DifficultyOption::Medium => "30-32 givens",
-            DifficultyOption::Hard => "24-27 givens",
-            DifficultyOption::Expert => "17-22 givens",
+            DifficultyOption::Easy => "Easy (36-38 givens)",
+            DifficultyOption::Medium => "Medium (30-32 givens)",
+            DifficultyOption::Hard => "Hard (24-27 givens)",
+            DifficultyOption::Expert => "Very Hard (17-22 givens)",
             DifficultyOption::Resume => "Resume Game",
         }
     };
@@ -565,7 +564,7 @@ pub fn render_selector(frame: &mut Frame, state: &GameState) {
     let box_x = 80u16.saturating_sub(box_w) / 2;
     let box_area = Rect {
         x: box_x,
-        y: frame.area().height.saturating_sub(box_h) / 2,
+        y: frame.size().height.saturating_sub(box_h) / 2,
         width: box_w,
         height: box_h,
     };
@@ -694,8 +693,8 @@ pub fn render_win(frame: &mut Frame, state: &GameState) {
     let popup_h = body_h.saturating_add(2);
 
     let popup_area = Rect {
-        x: (frame.area().width.saturating_sub(popup_w as u16) / 2),
-        y: (frame.area().height.saturating_sub(popup_h as u16) / 2),
+        x: (frame.size().width.saturating_sub(popup_w as u16) / 2),
+        y: (frame.size().height.saturating_sub(popup_h as u16) / 2),
         width: popup_w as u16,
         height: popup_h as u16,
     };

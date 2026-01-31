@@ -71,7 +71,36 @@ pub fn command_from_key_event(event: KeyEvent) -> Option<Command> {
 
 pub fn apply_command(state: &mut GameState, command: Command) {
     match command {
-        Command::Move(dir) => state.move_selection(dir),
+        Command::Move(dir) => {
+            use crate::state::Screen;
+            if state.screen == Screen::LevelSelector {
+                match dir {
+                    MoveDir::Up => {
+                        use crate::state::DifficultyOption;
+                        state.selector_selection = match state.selector_selection {
+                            DifficultyOption::Easy => DifficultyOption::Expert,
+                            DifficultyOption::Medium => DifficultyOption::Easy,
+                            DifficultyOption::Hard => DifficultyOption::Medium,
+                            DifficultyOption::Expert => DifficultyOption::Hard,
+                            DifficultyOption::Resume => DifficultyOption::Expert,
+                        };
+                    }
+                    MoveDir::Down => {
+                        use crate::state::DifficultyOption;
+                        state.selector_selection = match state.selector_selection {
+                            DifficultyOption::Easy => DifficultyOption::Medium,
+                            DifficultyOption::Medium => DifficultyOption::Hard,
+                            DifficultyOption::Hard => DifficultyOption::Expert,
+                            DifficultyOption::Expert => DifficultyOption::Easy,
+                            DifficultyOption::Resume => DifficultyOption::Easy,
+                        };
+                    }
+                    _ => {}
+                }
+            } else {
+                state.move_selection(dir);
+            }
+        }
         Command::MoveSelectorUp => {
             use crate::state::{DifficultyOption, Screen};
             if state.screen == Screen::LevelSelector {
@@ -146,6 +175,12 @@ pub fn apply_command(state: &mut GameState, command: Command) {
             state.last_action = Some(action);
             if action == LastAction::Clear {
                 state.clear_selected();
+            }
+            if action == LastAction::Undo {
+                state.undo();
+            }
+            if action == LastAction::Redo {
+                state.redo();
             }
             if action == LastAction::Hint
                 && state.hints_left > 0
